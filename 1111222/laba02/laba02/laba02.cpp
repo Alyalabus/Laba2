@@ -21,12 +21,12 @@ T GetCorrectNumber(T min, T max) {
 
 class Trubka {
 public:
-	//static int MAX_TRUBKA_ID;
+	static int MAX_TRUBKA_ID;
 	string name;
 	bool workingStatus;
 
 	Trubka() {
-		//id = MAX_TRUBKA_ID++;
+		id = MAX_TRUBKA_ID++;
 		diameter = 0;
 		length = 0;
 		workingStatus = false;
@@ -75,11 +75,11 @@ private:
 
 class Stancia {
 public:
-	//static int MAX_STANCIA_ID;
+	static int MAX_STANCIA_ID;
 	string name;
 
 	Stancia() {
-		//id = MAX_STANCIA_ID++;
+		id = MAX_STANCIA_ID++;
 		count = 0;
 		countInWork = 0;
 		efficiency = 0;
@@ -123,10 +123,77 @@ private:
 };
 
 template <typename T>
-using filterPipes = bool (*) (Trubka& trubka, T param);
+using filterTrubkas = bool (*) (Trubka& trubka, T param);
 
 template <typename T>
-using filterStations = bool (*) (Stancia& stancia, T param);
+using filterStancians = bool (*) (Stancia& stancia, T param);
+
+template <typename T>
+vector<int> searchTrubkaByParam(unordered_map<int, Trubka>& trubkaline, filterTrubkas<T> f, T param) {
+	vector<int> result;
+	for (auto& trubka : trubkaline)
+		if (f(trubka.second, param))
+			result.push_back(trubka.second.GetID());
+	return result;
+}
+
+template <typename T>
+vector<int> searchStanciaByParam(unordered_map<int, Stancia>& stancia_group, filterStancians<T> f, T param) {
+	vector<int> result;
+	for (auto& stancia : stancia_group)
+		if (f(stancia.second, param))
+			result.push_back(stancia.second.GetID());
+	return result;
+}
+
+bool checkTrubkaName(Trubka& trubka, string name) { return (trubka.name.find(name) != string::npos); }
+
+bool checkTrubkaStatus(Trubka& trubka, bool status) { return (trubka.workingStatus == status); }
+
+bool checkStationName(Stancia& stancia, string name) { return (stancia.name.find(name) != string::npos); }
+
+bool checkStationUnusedShops(Stancia& stancia, double param) { return (stancia.GetUnusedShopsPercentage() >= param); }
+
+void searchTrubkas(unordered_map<int, Trubka>& trubkaline, vector<int>& resultVector) {
+	int number;
+	cout << "Выберите фильтрацию (0 - по имени, 1 - по статусу трубы): ";
+	number = GetCorrectNumber(0, 1);
+	if (number == 0) {
+		string name;
+		cout << "Введите имя для поиска труб: ";
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+		getline(cin, name);
+		resultVector = searchTrubkaByParam(trubkaline, checkTrubkaName, name);
+	}
+	else if (number == 1) {
+		bool status;
+		cout << "\nВведите состояние трубы для поиска (0 - если она в ремонте, 1 - если она работает): ";
+		status = GetCorrectNumber(0, 1);
+		resultVector = searchTrubkaByParam(trubkaline, checkTrubkaStatus, status);
+	}
+}
+
+void searchStancia(unordered_map<int, Stancia>& stancia_group, vector<int>& resultVector) {
+	int number;
+	cout << "Выберите фильтрацию (0 - по имени, 1 - по проценту не задействованных цехов): ";
+	number = GetCorrectNumber(0, 1);
+	if (number == 0) {
+		string name;
+		cout << "\nВведите имя для поиска компрессорных станций: ";
+		cin >> name;
+		resultVector = searchStanciaByParam(stancia_group, checkStationName, name);
+	}
+	else if (number == 1) {
+		double param;
+		cout << "\nВведите процент не задействованных цехов для поиска (в долях от единицы): ";
+		param = GetCorrectNumber(0.0, 1.0);
+		resultVector = searchStanciaByParam(stancia_group, checkStationUnusedShops, param);
+	}
+}
+
+int Trubka::MAX_TRUBKA_ID = 0;
+int Stancia::MAX_STANCIA_ID = 0;
 
 void menu() {
 	cout << "1. Добавить трубу" << endl;
@@ -178,7 +245,7 @@ void Stancia::saveStancia(ofstream& fout) {
 	fout << efficiency << endl;
 }
 
-void save(unordered_map<int, Trubka>& trubkaline, unordered_map<int, Stancia>& stationsGroup, string filepath) {
+void save(unordered_map<int, Trubka>& trubkaline, unordered_map<int, Stancia>& stanciansGroup, string filepath) {
 	ofstream fout;
 	fout.open(filepath);
 
@@ -186,15 +253,32 @@ void save(unordered_map<int, Trubka>& trubkaline, unordered_map<int, Stancia>& s
 		cout << "Не получилось открыть файл!";
 	}
 	else {
-		fout << trubkaline.size() << " " << stationsGroup.size() << endl;
+		fout << trubkaline.size() << " " << stanciansGroup.size() << endl;
 		for (auto& trubka : trubkaline)
 			trubka.second.saveTrubka(fout);
-		for (auto& station : stationsGroup)
-			station.second.saveStancia(fout);
+		for (auto& stancia : stanciansGroup)
+			stancia.second.saveStancia(fout);
 		fout.close();
 	}
 }
 
+void Trubka::loadTrubka(ifstream& fin) {
+	fin >> this->id;
+	getline(fin, name, '\n');
+	getline(fin, name, '\n');
+	fin >> this->diameter;
+	fin >> this->length;
+	fin >> this->workingStatus;
+}
+
+void Stancia::loadStancia(ifstream& fin) {
+	fin >> id;
+	getline(fin, name, '\n');
+	getline(fin, name, '\n');
+	fin >> count;
+	fin >> countInWork;
+	fin >> efficiency;
+}
 
 
 int main()
