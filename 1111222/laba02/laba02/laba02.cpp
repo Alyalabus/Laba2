@@ -62,8 +62,8 @@ public:
 	}
 
 	void redactTrubka();
-	void saveTrubka(ofstream& fout);
-	void loadTrubka(ifstream& fin);
+	void saveTrubka(ofstream& fout);//ofstream - для вывода (записи) данных в файл
+	void loadTrubka(ifstream& fin);//ifstream - для ввода (чтения) данных из файла
 	int GetID() { return id; }
 	void SetWorkingStatus(bool status) { workingStatus = status; }
 
@@ -89,7 +89,7 @@ public:
 		in.clear();
 		in.ignore(INT_MAX, '\n');
 		cout << "Имя: ";
-		getline(in, stancia.name);
+		getline(in, stancia.name);//Getline () - функция  используемая для чтения строки или строки из входного потока.
 		cout << "\nКоличество цехов: ";
 		stancia.count = GetCorrectNumber(1, INT_MAX);
 		cout << "\nКоличество цехов в работе:";
@@ -99,7 +99,7 @@ public:
 		return in;
 	}
 
-	friend ostream& operator<< (ostream& out, Stancia& stancia) {
+	friend ostream& operator<< (ostream& out, Stancia& stancia) { //ostream-потоки вывода
 		out << "Компрессорная станция: " << endl;
 		out << "ID: " << stancia.id << endl;
 		out << "Имя: " << stancia.name << endl;
@@ -110,8 +110,8 @@ public:
 	}
 
 	void redactStancia();
-	void saveStancia(ofstream& fout);
-	void loadStancia(ifstream& fin);
+	void saveStancia(ofstream& fout);//ofstream - для вывода (записи) данных в файл
+	void loadStancia(ifstream& fin); //ifstream - для ввода (чтения) данных из файла
 	int GetID() { return id; }
 	double GetUnusedShopsPercentage() { return ((double)(count - countInWork) / count); }
 
@@ -123,7 +123,7 @@ private:
 };
 
 template <typename T>
-using filterTrubkas = bool (*) (Trubka& trubka, T param);
+using filterTrubkas = bool (*) (Trubka& trubka, T param);//Bool — тип, который может содержать в себе значения true (истина) и false (ложь)
 
 template <typename T>
 using filterStancians = bool (*) (Stancia& stancia, T param);
@@ -133,7 +133,7 @@ vector<int> searchTrubkaByParam(unordered_map<int, Trubka>& trubkaline, filterTr
 	vector<int> result;
 	for (auto& trubka : trubkaline)
 		if (f(trubka.second, param))
-			result.push_back(trubka.second.GetID());
+			result.push_back(trubka.second.GetID());//push_back () — способ, который увеличивает размер вектора на 1.
 	return result;
 }
 
@@ -146,7 +146,7 @@ vector<int> searchStanciaByParam(unordered_map<int, Stancia>& stancia_group, fil
 	return result;
 }
 
-bool checkTrubkaName(Trubka& trubka, string name) { return (trubka.name.find(name) != string::npos); }
+bool checkTrubkaName(Trubka& trubka, string name) { return (trubka.name.find(name) != string::npos); }//String::npos — константа, которая была введена в язык для обозначения несуществующего индекса в массиве
 
 bool checkTrubkaStatus(Trubka& trubka, bool status) { return (trubka.workingStatus == status); }
 
@@ -280,6 +280,40 @@ void Stancia::loadStancia(ifstream& fin) {
 	fin >> efficiency;
 }
 
+void load(unordered_map<int, Trubka>& trubkaline, unordered_map<int, Stancia>& stanciansGroup, string filepath) {
+	ifstream fin;
+
+	fin.open(filepath, ios::in);
+	if (!fin) {
+		cout << "Не получилось открыть файл!";
+	}
+	else {
+		Trubka::MAX_TRUBKA_ID = 0;
+		Stancia::MAX_STANCIA_ID = 0;
+		Trubka newTrubka;
+		Stancia newStancia;
+		trubkaline.clear();
+		stanciansGroup.clear();
+		int TrubkaNumber, stanciaNumber;
+		fin >> TrubkaNumber >> stanciaNumber;
+		for (int i(0); i < TrubkaNumber; i++) {
+			newTrubka.loadTrubka(fin);
+			trubkaline.insert({ newTrubka.GetID(), newTrubka });
+			Trubka::MAX_TRUBKA_ID = (Trubka::MAX_TRUBKA_ID < newTrubka.GetID() ? newTrubka.GetID() : Trubka::MAX_TRUBKA_ID);
+		}
+		for (int i(0); i < stanciaNumber; i++) {
+			newStancia.loadStancia(fin);
+			stanciansGroup.insert({ newStancia.GetID(), newStancia });
+			Stancia::MAX_STANCIA_ID = (Stancia::MAX_STANCIA_ID < newStancia.GetID() ? newStancia.GetID() : Stancia::MAX_STANCIA_ID);
+		}
+
+		Trubka::MAX_TRUBKA_ID++;
+		Stancia::MAX_STANCIA_ID++;
+
+		fin.close();
+	}
+}
+
 
 int main()
 {
@@ -333,11 +367,130 @@ int main()
 		}
 		case 4:
 		{
+			if (trubkaline.size() == 0) {
+				cout << "Редактирование не возможно: не была создана ни одна труба. Попробуйте снова." << endl;
+				break;
+			}
+			int number;
+			cout << "Выберите работу с одной трубой (введите 0) или с множеством (введите 1): ";
+			number = GetCorrectNumber(0, 1);
+			if (number == 0) {
+				int TrubkaID;
+				cout << "Введите id трубы: ";
+				TrubkaID = GetCorrectNumber(0, Trubka::MAX_TRUBKA_ID);
+				if (trubkaline.find(TrubkaID) == trubkaline.end()) {
+					cout << "Труба с введённым id не была найдена" << endl;
+					break;
+				}
+				cout << endl;
+				int choice;
+				cout << "Выберите действие с трубой (0 - редактирование, 1 - удаление): ";
+				choice = GetCorrectNumber(0, 1);
+				if (choice == 0)
+					trubkaline[TrubkaID].redactTrubka();
+				else if (choice == 1)
+					trubkaline.erase(trubkaline.find(TrubkaID));
 
+			}
+			else if (number == 1) {
+				int choicePackage;
+				cout << "Введите \"0\" для редактирования труб по фильтру или \"1\" для ввода id труб для редактирования: ";
+				choicePackage = GetCorrectNumber(0, 1);
+				if (choicePackage == 0) {
+					bool statusToSet;
+					cout << "\nСтатус для установки выбранным трубам (0 - \"в ремонте\", 1 - \"в работе\"): ";
+					statusToSet = (bool)GetCorrectNumber(0, 1);
+					vector<int> searchVector;
+					searchTrubkas(trubkaline, searchVector);
+					for (auto& id : searchVector) {
+						trubkaline[id].SetWorkingStatus(statusToSet);
+					}
+				}
+				else if (choicePackage == 1) {
+					unordered_set<int> ids;
+					cout << "Введите количество редактируемых труб: ";
+					int idsAmount = GetCorrectNumber(0, Trubka::MAX_TRUBKA_ID);
+					cout << "\nВведите id труб для редактирования: ";
+					for (int i(0); i < idsAmount; i++) {
+						int id = GetCorrectNumber(0, Trubka::MAX_TRUBKA_ID - 1);
+						if (trubkaline.find(id) != trubkaline.end())
+							ids.insert(id);
+						else {
+							cout << "Труба с данным id не существует." << endl;
+							i--;
+						}
+					}
+					cout << "Статус для установки выбранным трубам (0 - \"в ремонте\", 1 - \"в работе\"): ";
+					bool statusToSet = (bool)GetCorrectNumber(0, 1);
+					for (auto& id : ids) {
+						trubkaline[id].SetWorkingStatus(statusToSet);
+					}
+				}
+			}
+			break;
 		}
 		case 5:
 		{
+			if (Stancia_group.size() == 0) {
+				cout << "Редактирование не возможно: не была создана ни одна компрессорная станция. Попробуйте снова." << endl;
+				break;
+			}
 
+			int number;
+			cout << "Выберите работу с одной компрессорной станцией (введите 0) или с множеством (введите 1): ";
+			number = GetCorrectNumber(0, 1);
+			if (number == 0) {
+				int stanciaID;
+				cout << "\nВведите id компрессорной станции: ";
+				stanciaID = GetCorrectNumber(0, Stancia::MAX_STANCIA_ID);
+				if (Stancia_group.find(stanciaID) == Stancia_group.end()) {
+					cout << "Станция с введённым id не была найдена" << endl;
+					break;
+				}
+				cout << endl;
+				int choice;
+				cout << "Выберите действие со станцией (0 - редактирование, 1 - удаление): ";
+				choice = GetCorrectNumber(0, 1);
+				if (choice == 0)
+					Stancia_group[stanciaID].redactStancia();
+				else if (choice == 1)
+					Stancia_group.erase(Stancia_group.find(stanciaID));
+
+			}
+			else if (number == 1) {
+
+				int choicePackage;
+				cout << "Введите \"0\" для редактирования станций по фильтру или \"1\" для ввода id станций для редактирования: ";
+				choicePackage = GetCorrectNumber(0, 1);
+				if (choicePackage == 0) {
+					vector<int> searchVector;
+					searchStancia(Stancia_group, searchVector);
+					cout << "Отредактируйте выбранные станции." << endl;
+					for (auto& id : searchVector) {
+						Stancia_group[id].redactStancia();
+					}
+				}
+				else if (choicePackage == 1) {
+					unordered_set<int> ids;
+					cout << "\nВведите количество редактируемых станций: ";
+					int idsAmount = GetCorrectNumber(0, Stancia::MAX_STANCIA_ID);
+					cout << "\nВведите id станций для редактирования: ";
+					for (int i(0); i < idsAmount; i++) {
+						int id = GetCorrectNumber(0, Stancia::MAX_STANCIA_ID - 1);
+						if (Stancia_group.find(id) != Stancia_group.end())
+							ids.insert(id);
+						else {
+							cout << "Станции с данным id не существует." << endl;
+							i--;
+						}
+					}
+					cout << "Отредактируйте выбранные станции." << endl;
+					for (auto& id : ids) {
+						Stancia_group[id].redactStancia();
+					}
+				}
+			}
+			break;
 		}
 		case 6:
 		{
@@ -349,10 +502,28 @@ int main()
 		}
 		case 7:
 		{
+			string pathToFile;
+			cout << "Введите название файла для загрузки: ";
+			cin >> pathToFile;
+			load(trubkaline, Stancia_group, pathToFile);
+			break;
 		}
 		case 8:
 		{
-
+			vector<int> result;
+			int number;
+			cout << "Выберите объект для поиска (0 - если трубы, 1 - если компрессорные станции): ";
+			number = GetCorrectNumber(0, 1);
+			if (number == 0) {
+				searchTrubkas(trubkaline, result);
+				for (auto& trubka : result)
+					cout << trubkaline[trubka] << endl << endl;
+			}
+			else if (number == 1) {
+				searchStancia(Stancia_group, result);
+				for (auto& stancia : result)
+					cout << Stancia_group[stancia] << endl << endl;
+			}
 		}
 		default:
 			break;
